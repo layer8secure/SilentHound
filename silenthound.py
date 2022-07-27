@@ -65,22 +65,34 @@ def create_cache(dump):
 
 def dump_ldap():
     try:
-        # connect
-        connect = ldap.initialize(f'ldap://{args.target}')
-        # set option
+        print(Fore.BLUE + f"Connecting to the LDAP server at '{args.target}'..." + Style.RESET_ALL)
+        connect = ldap.initialize(f"ldap://{args.target}")
         connect.set_option(ldap.OPT_REFERRALS, 0)
-        # bind to server w credentials
         connect.simple_bind_s(args.username, args.password)
-        # grab ldap data
-        result = connect.search_s(namingcontexts, ldap.SCOPE_SUBTREE)
+        search_flt = "(objectClass=*)" # specific search filters
+        page_size = 300 # pagination setting (default highest value is 1000)
+        searchreq_attrlist=[""] # specific attribute search
+        req_ctrl = ldap.controls.SimplePagedResultsControl(criticality=True, size=page_size, cookie='')
+        msgid = connect.search_ext(base=namingcontexts, scope=ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
+        total_results = []
+        pages = 0
+        while True: # loop over all of the pages using the same cookie, otherwise the search will fail
+            pages += 1
+            rtype, rdata, rmsgid, serverctrls = connect.result3(msgid)
 
-        if (result[0][1]) == {}:
-            print(Fore.RED + "[!] Successful Bind but NO data returned - no permissions??" + Style.RESET_ALL)
-            sys.exit()
-            return None
-        else:
-            return result
+            for obj in rdata:
+                total_results.append(obj)
 
+            pctrls = [c for c in serverctrls if c.controlType == ldap.controls.SimplePagedResultsControl.controlType]
+            if pctrls:
+                if pctrls[0].cookie: # Copy cookie from response control to request control
+                    req_ctrl.cookie = pctrls[0].cookie
+                    msgid = connect.search_ext(base=namingcontexts, scope=ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
+                else:
+                    break
+            else:
+                break
+        return total_results
 
     except ldap.INVALID_CREDENTIALS:
         print(Fore.RED + f"[!] Error - Invalid Credentials '{args.username}:{args.password}'" + Style.RESET_ALL)
