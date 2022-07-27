@@ -92,7 +92,14 @@ def dump_ldap():
                     break
             else:
                 break
-        return total_results
+
+        if (total_results[0][1]) == {}:
+            print(Fore.RED + "[!] Successful Bind but NO data returned - no permissions??" + Style.RESET_ALL)
+            sys.exit()
+            return None
+        else:
+            return total_results
+
 
     except ldap.INVALID_CREDENTIALS:
         print(Fore.RED + f"[!] Error - Invalid Credentials '{args.username}:{args.password}'" + Style.RESET_ALL)
