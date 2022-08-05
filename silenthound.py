@@ -11,9 +11,9 @@ from colorama import Fore, Style
 parser = argparse.ArgumentParser(description='Quietly enumerate an Active Directory environment.')
 parser.add_argument('target', metavar='TARGET', type=str, help='Domain Controller IP')
 parser.add_argument('domain', type=str,help="Dot (.) separated Domain name including both contexts e.g. ACME.com / HOME.local / htb.net")
-parser.add_argument('-u','--username', type=str, help="LDAP username - not the same as user principal name. E.g. Username: bob.dole might be 'bob dole'")
-parser.add_argument('-p','--password', type=str,help="LDAP password - use single quotes 'password'")
-parser.add_argument('-o', '--output', type=str, help="Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current working directory.")
+parser.add_argument('-u','--username', type=str, help="Use fully qualified domain name (bdole@home.local) or LDAP username ('bob dole')")
+parser.add_argument('-p','--password', type=str,help="Active Directory password'")
+parser.add_argument('-o', '--output', default='hound', type=str, help="Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current working directory.")
 parser.add_argument('-g', '--groups', action='store_true', help="Display Group names with user members.")
 parser.add_argument('-n', '--org-unit', action='store_true', help="Display Organizational Units.")
 parser.add_argument('-k', '--keywords', action='store_true', help="Search for key words in LDAP objects.")
@@ -113,7 +113,7 @@ class Hound:
 			connect.set_option(ldap.OPT_REFERRALS, 0)
 			connect.simple_bind_s(args.username, args.password)
 			search_flt = "(objectClass=*)" # specific search filters
-			page_size = 300 # pagination setting (default highest value is 1000)
+			page_size = 1000 # pagination setting (default highest value is 1000)
 			searchreq_attrlist=[""] # specific attribute search
 			req_ctrl = ldap.controls.SimplePagedResultsControl(criticality=True, size=page_size, cookie='')
 			msgid = connect.search_ext(base=self.namingcontexts, scope=ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
