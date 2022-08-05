@@ -1,3 +1,12 @@
 # ignore ALL .cache files
 *.cache
 
+# silenthound files
+*-descriptions.txt
+*-domain_admins.txt
+*-groups.txt
+*-hosts.txt
+*-keywords.txt
+*-org.txt
+*-users.txt
+output
