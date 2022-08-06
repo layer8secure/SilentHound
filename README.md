@@ -5,6 +5,12 @@ Quietly enumerate an Active Directory Domain via LDAP parsing users, admins, gro
 
 ### Installation
 
+#### Debian
+Packages for building and testing:
+    apt-get install build-essential python3-dev python2.7-dev \
+    libldap2-dev libsasl2-dev slapd ldap-utils tox \
+    lcov valgrind
+
 #### Using pipenv (recommended method)
     sudo python3 -m pip install --user pipenv
     git clone https://github.com/layer8secure/SilentHound.git
