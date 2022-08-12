@@ -8,7 +8,7 @@ Quietly enumerate an Active Directory Domain via LDAP parsing users, admins, gro
 #### Debian
 Packages for building and testing
 
-    apt-get install build-essential python3-dev python2.7-dev \
+    sudo apt-get install build-essential python3-dev python2.7-dev \
     libldap2-dev libsasl2-dev slapd ldap-utils tox \
     lcov valgrind
 
@@ -42,16 +42,16 @@ Install dependencies with `pip`:
     optional arguments:
       -h, --help            show this help message and exit
       -u USERNAME, --username USERNAME
-                            LDAP username - not the same as user principal name. E.g. Username: bob.dole might be 'bob
-                            dole'
+                            Use fully qualified domain name (bdole@home.local) or LDAP username ('bob dole')
       -p PASSWORD, --password PASSWORD
-                            LDAP password - use single quotes 'password'
+                            Active Directory password'
       -o OUTPUT, --output OUTPUT
-                            Name for output files. Creates output files for hosts, users, domain admins, and descriptions
-                            in the current working directory.
+                            Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current
+                            working directory.
       -g, --groups          Display Group names with user members.
       -n, --org-unit        Display Organizational Units.
-      -k, --keywords        Search for key words in LDAP objects.
+      -k, --keywords        Search for a list of key words in LDAP objects.    
+
 
 
 ### About

@@ -16,7 +16,7 @@ parser.add_argument('-p','--password', type=str,help="Active Directory password'
 parser.add_argument('-o', '--output', type=str, help="Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current working directory.")
 parser.add_argument('-g', '--groups', action='store_true', help="Display Group names with user members.")
 parser.add_argument('-n', '--org-unit', action='store_true', help="Display Organizational Units.")
-parser.add_argument('-k', '--keywords', action='store_true', help="Search for key words in LDAP objects.")
+parser.add_argument('-k', '--keywords', action='store_true', help="Search for a list of key words in LDAP objects.")
 args = parser.parse_args()
 
 
