@@ -72,6 +72,7 @@ Using the `-o` flag will result in output files for each section normally in std
 - [Nick Swink](https://github.com/nickswink) - Security Consultant at [Layer 8 Security](https://layer8security.com)
 
 ### Roadmap
+- support ntlm hash auth
 - add kerberoastable/asreproastable users flag
 - Parse users belonging to specific OUs
 - Refine output
