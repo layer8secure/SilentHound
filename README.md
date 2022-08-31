@@ -72,10 +72,10 @@ Using the `-o` flag will result in output files for each section normally in std
 - [Nick Swink](https://github.com/nickswink) - Security Consultant at [Layer 8 Security](https://layer8security.com)
 
 ### Roadmap
+- add kerberoastable/asreproastable users flag
 - Parse users belonging to specific OUs
 - Refine output
 - Continuously cleanup code
-- Move towards OOP
 
 For additional feature requests please submit an [issue](https://github.com/layer8secure/SilentHound/issues/new) and add the `enhancement` tag.
 
