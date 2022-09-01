@@ -58,6 +58,8 @@ def get_user_principal_name(cn, cn_upn_dict_list):
 
 
 # Borrowed from impacket-GetUserSPNs.py
+# Author:
+#   Alberto Solino (@agsolino)
 def getUnixTime(t):
 		t -= 116444736000000000
 		t /= 10000000
@@ -65,6 +67,8 @@ def getUnixTime(t):
 
 
 # Borrowed from impacket-GetUserSPNs.py
+# Author:
+#   Alberto Solino (@agsolino)
 def printTable(items, header):
     colLen = []
     for i, col in enumerate(header):
@@ -172,6 +176,7 @@ class Hound:
 
 
 	def extract_all(self,dump):
+		
 		def create_cn_upn_dict_list(dump):
 			# Map cn --> upn
 			for row in dump:
@@ -185,11 +190,11 @@ class Hound:
 				except:
 					pass
 
-		# needed first for matching common names to principal names
+		# Get a dictionary of common names to userPrincipalNames first
 		create_cn_upn_dict_list(dump)
 
 		for row in dump:
-			# users
+			# Extract all users
 			try:
 				if b'person' in row[1]['objectClass']:
 					user_principal_name_blist = row[1].get('userPrincipalName')
@@ -203,7 +208,7 @@ class Hound:
 			except:
 				pass
 
-			# Domain admins
+			# Extract all Domain admins
 			try:
 				if b'group' in row[1]['objectClass'] and b'Domain Admins' in row[1]['cn']:
 					member_blist = row[1]['member']
@@ -217,7 +222,7 @@ class Hound:
 			except:
 				pass
 
-			# COMPUTERS
+			# Extract all hosts
 			try:
 				if b'computer' in row[1]['objectClass']:
 					# parse short cn
@@ -231,7 +236,7 @@ class Hound:
 				pass
 
 
-			# Descriptions
+			# Extract all Descriptions
 			try:
 				if b'person' in row[1]['objectClass']:
 					upn_blist = row[1]['userPrincipalName']
@@ -243,7 +248,7 @@ class Hound:
 				pass
 
 
-			# Groups
+			# Extract all Groups
 			if args.groups:
 				try:
 					if b'group' in row[1]['objectClass']:
@@ -253,7 +258,7 @@ class Hound:
 				except:
 					pass
 
-			# OUs
+			# Extract all OUs
 			if args.org_unit:
 				try:
 					if b'organizationalUnit' in row[1].get('objectClass'):
@@ -261,14 +266,14 @@ class Hound:
 				except:
 					pass
 
-			# Search key phrases
+			# Extract all key phrases
 			if args.keywords:
 				try:
 					for key in row[1]:
 						# search keys
 						if any(word in key for word in self.__key_words):
 							if key not in self.__default_pwd_words:
-								self.__loot_list.append(f"{key}={(row[1].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd']
+								self.__loot_list.append(f"{key}={(row[1].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd'] -> pwd='p@$$w0rd'
 						# search key values
 						for item in row[1].get(key):
 							try:
@@ -277,14 +282,16 @@ class Hound:
 									self.__loot_list.append(item)
 							except:
 								continue
+
 				except:
 					continue
 
 		# return self.__computers, self.__description_dict_list, self.__cn_upn_dict_list, self.__domain_admins_cn, self.__group_user_dict_list, self.__ou_list, self.__loot_list
 
 
-# Heavily influenced by GetUserSPNs.py from impacket 
-# https://github.com/SecureAuthCorp/impacket/blob/3c6713e309cae871d685fa443d3e21b7026a2155/examples/GetUserSPNs.py
+# Heavily influenced by GetUserSPNs.py from impacket
+# Author:
+#   Alberto Solino (@agsolino)
 
 	def kerberoastable(self, total_results):
 		
@@ -297,14 +304,15 @@ class Hound:
 			# Lets look for objects with SPNs and desired UserAccountControl settings
 			for obj in total_results:
 				try:
-					userAccountControl = obj[1]['userAccountControl'][0]
+					# userAccountControl = obj[1]['userAccountControl'][0]
 					servicePrincipalName = obj[1]['servicePrincipalName']
 					# UserAccountControl keys :
 						# 512 = normal user account
 						# 65536 = password doesn't expire
 						# 66048 = enabled, password doesn't expire
-
-					if b'computer' not in obj[1]['objectClass'] and servicePrincipalName and userAccountControl == b'512' or userAccountControl == b'65536' or userAccountControl == b'66048':
+					# good_UACs = [b'512', b'66176', b'65536', b'66048', b'640']
+					
+					if b'computer' not in obj[1]['objectClass'] and servicePrincipalName:
 						kerberoastable.append(obj)
 
 				except Exception as e:
@@ -347,7 +355,8 @@ class Hound:
 							
 					if mustCommit is True:
 						if int(userAccountControl) == 514:
-							print('Bypassing disabled account %s ' % sAMAccountName)
+							#print('Bypassing disabled account %s ' % sAMAccountName)
+							pass
 						else:
 							for spn in SPNs:
 								self.__kerberostable_users.append([spn, sAMAccountName, memberOf, pwdLastSet, lastLogon])
@@ -359,33 +368,33 @@ class Hound:
 
 	def print(self):
 		# Print Hosts
-		print(Fore.GREEN + "[+] Hosts" + Style.RESET_ALL)
+		print(Fore.GREEN + f"[+] Hosts [{len(self.__ip_dict_list)}]" + Style.RESET_ALL)
 		for i in range(len(self.__ip_dict_list)):
 			print(f"{self.__ip_dict_list[i]['Name']} - {self.__ip_dict_list[i]['Address']}")
 		print('\n')
 
 		# Print Domain Admins
-		print(Fore.GREEN + "[+] Domain Admins" + Style.RESET_ALL)
+		print(Fore.GREEN + f"[+] Domain Admins [{len(self.__domain_admins_upn)}]" + Style.RESET_ALL)
 		for user_upn in self.__domain_admins_upn:
 			print(user_upn)
 		print('\n')
 
 		# Print Users
-		print(Fore.GREEN + "[+] Domain Users" + Style.RESET_ALL)
+		print(Fore.GREEN + f"[+] Domain Users [{len(self.__usernames)}]" + Style.RESET_ALL)
 		for i in range(len(self.__usernames)):
 			print(self.__usernames[i])
 
 		print('\n')
 
 		# Print Descriptions
-		print(Fore.GREEN + "[+] Descriptions" + Style.RESET_ALL)
+		print(Fore.GREEN + f"[+] Descriptions [{len(self.__description_dict_list)}]" + Style.RESET_ALL)
 		for d in self.__description_dict_list:
 			print(f"{d['UserPrincipalName']} - {d['description']}")
 		print('\n')
 
 		# Print Groups
 		if args.groups:
-			print(Fore.GREEN + "[+] Group Memberships Found" + Style.RESET_ALL)
+			print(Fore.GREEN + f"[+] Group Memberships Found [{len(self.__group_user_dict_list)}]" + Style.RESET_ALL)
 			for group in self.__group_user_dict_list:
 				if any(word in group['Group'] for word in self.__special_words):
 					print(Fore.RED + group['Group'] + Style.RESET_ALL)
@@ -403,7 +412,7 @@ class Hound:
 
 		# Print OUs
 		if args.org_unit:
-			print(Fore.GREEN + "[+] Organizational Units Found" + Style.RESET_ALL)
+			print(Fore.GREEN + f"[+] Organizational Units Found [{len(self.__ou_list)}]" + Style.RESET_ALL)
 			for ou in self.__ou_list:
 				print(ou)
 			print('\n')
@@ -411,7 +420,7 @@ class Hound:
 
 		# Print Passwords
 		if args.keywords:
-			print(Fore.GREEN + "[+] Key Strings" + Style.RESET_ALL)
+			print(Fore.GREEN + f"[+] Key Strings [{len(self.__loot_list)}]" + Style.RESET_ALL)
 			for l in self.__loot_list:
 				print(f"{l}")
 			print('\n')
@@ -537,6 +546,8 @@ if __name__ == "__main__":
 	h1.outfiles()
 
 
+# TODO
+# Get passpol and match regex strings in keyword search based on passpol
 
 
 # Changelog
