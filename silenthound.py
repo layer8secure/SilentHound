@@ -306,10 +306,9 @@ class Hound:
 				try:
 					# userAccountControl = obj[1]['userAccountControl'][0]
 					servicePrincipalName = obj[1]['servicePrincipalName']
-					# UserAccountControl keys :
-						# 512 = normal user account
-						# 65536 = password doesn't expire
-						# 66048 = enabled, password doesn't expire
+					# UAC values - 
+					# https://jackstromberg.com/2013/01/useraccountcontrol-attributeflag-values/
+
 					# good_UACs = [b'512', b'66176', b'65536', b'66048', b'640']
 					
 					if b'computer' not in obj[1]['objectClass'] and servicePrincipalName:
@@ -354,7 +353,8 @@ class Hound:
 								SPNs.append(str(spn))
 							
 					if mustCommit is True:
-						if int(userAccountControl) == 514:
+						disabled_UACs = [514, 546, 66050, 66082, 262658, 262690, 328194, 328226]
+						if int(userAccountControl) in disabled_UACs:
 							#print('Bypassing disabled account %s ' % sAMAccountName)
 							pass
 						else:
