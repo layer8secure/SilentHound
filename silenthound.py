@@ -110,6 +110,10 @@ class Hound:
 
 
 	def dump_ldap(self):
+		
+		#if args.hashes:
+
+
 		try:
 			print(Fore.BLUE + f"[-] Connecting to the LDAP server at '{args.target}'..." + Style.RESET_ALL)
 			connect = ldap.initialize(f"ldap://{args.target}")
@@ -289,7 +293,7 @@ class Hound:
 		# return self.__computers, self.__description_dict_list, self.__cn_upn_dict_list, self.__domain_admins_cn, self.__group_user_dict_list, self.__ou_list, self.__loot_list
 
 
-# Heavily influenced by GetUserSPNs.py from impacket
+# Function influenced by GetUserSPNs.py without using impacket library.
 # Author:
 #   Alberto Solino (@agsolino)
 
@@ -301,7 +305,7 @@ class Hound:
 			
 			kerberoastable = []
 
-			# Lets look for objects with SPNs and desired UserAccountControl settings
+			# Lets look for objects with SPNs
 			for obj in total_results:
 				try:
 					# userAccountControl = obj[1]['userAccountControl'][0]
@@ -351,7 +355,8 @@ class Hound:
 							for spn in obj[1].get(attribute):
 								spn = spn.decode('UTF-8')
 								SPNs.append(str(spn))
-							
+					
+					# Make sure the account isn't disabled
 					if mustCommit is True:
 						disabled_UACs = [514, 546, 66050, 66082, 262658, 262690, 328194, 328226]
 						if int(userAccountControl) in disabled_UACs:
@@ -487,7 +492,6 @@ class Hound:
 
 
 if __name__ == "__main__":
-# hopefully easier to follow now :/
 
 	# Set args
 
@@ -544,20 +548,6 @@ if __name__ == "__main__":
 
 	# Output to files
 	h1.outfiles()
-
-
-# TODO
-# Get passpol and match regex strings in keyword search based on passpol
-
-
-# Changelog
-
-# made resolve_ipv4 internal class func
-# made all hound variables private variables "__var"
-# added kerberoastable users function
-
-
-
 
 
 

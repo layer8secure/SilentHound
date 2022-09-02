@@ -73,11 +73,23 @@ Using the `-o` flag will result in output files for each section normally in std
 
 ### Roadmap
 - support ntlm hash auth
-- add kerberoastable/asreproastable users flag
-- Parse users belonging to specific OUs
-- Refine output
-- Continuously cleanup code
+- match strings with regex in --keyword
+- convert cache into bloodhound compatible file to reduce traffic
+
 
 For additional feature requests please submit an [issue](https://github.com/layer8secure/SilentHound/issues/new) and add the `enhancement` tag.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
