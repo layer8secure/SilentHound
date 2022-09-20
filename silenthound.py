@@ -200,7 +200,7 @@ class Hound:
 		for row in dump:
 			# Extract all users
 			try:
-				if b'person' in row[1]['objectClass']:
+				if b'person' in row[1]['objectClass'] and b'computer' not in row[1]['objectClass']:
 					user_principal_name_blist = row[1].get('userPrincipalName')
 					if user_principal_name_blist:
 						user_principal_name = user_principal_name_blist[0].decode('UTF-8')
