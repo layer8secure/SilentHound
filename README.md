@@ -31,7 +31,7 @@ Install dependencies with `pip`:
 
 ### Usage
     $ pipenv run python silenthound.py -h
-    usage: silenthound.py [-h] [-u USERNAME] [-p PASSWORD] [-o OUTPUT] [-g] [-n] [-k] TARGET domain
+    usage: silenthound.py [-h] [-u USERNAME] [-p PASSWORD] [-o OUTPUT] [-g] [-n] [-k] [--kerberoast] TARGET domain
 
     Quietly enumerate an Active Directory environment.
 
@@ -50,7 +50,8 @@ Install dependencies with `pip`:
                             working directory.
       -g, --groups          Display Group names with user members.
       -n, --org-unit        Display Organizational Units.
-      -k, --keywords        Search for a list of key words in LDAP objects.    
+      -k, --keywords        Search for a list of key words in LDAP objects.
+      --kerberoast          Identify kerberoastable user accounts by their SPNs.   
 
 
 
