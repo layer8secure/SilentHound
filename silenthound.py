@@ -515,7 +515,15 @@ if __name__ == "__main__":
 	else:
 		domain = args.domain.split('.')[0]
 		ext = args.domain.split('.')[1]
-		namingcontexts = f"dc={domain},dc={ext}"
+
+		l = args.domain.split('.')
+		namingcontexts = ""
+		for word in l:
+			if word == l[-1]:
+				namingcontexts += f"DC={word}"
+			else:
+				namingcontexts += f"DC={word},"
+
 
 	print()
 	banner()
