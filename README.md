@@ -13,7 +13,7 @@ Packages for building and testing
     lcov valgrind
 
 #### Using pipenv (recommended method)
-    sudo python3 -m pip install --user pipenv
+    python3 -m pip install --user pipenv
     git clone https://github.com/layer8secure/SilentHound.git
     cd silenthound
     pipenv install
