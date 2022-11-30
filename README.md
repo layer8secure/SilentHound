@@ -48,6 +48,126 @@ Install dependencies with `pip`:
       --ssl                 Use a secure LDAP server on default 636 port.  
 
 
+### Example
+    $ pipenv run python silenthound.py -u 'svc_tgs' -p 'P@$$w0rd123' 10.10.10.100 active.htb -g -n -k --kerberoast
+
+
+     _____ _ _            _   _    _                       _ 
+    / ____(_) |          | | | |  | |                     | |
+    | (___  _| | ___ _ __ | |_| |__| | ___  _   _ _ __   __| |
+    \___ \| | |/ _ \ '_ \| __|  __  |/ _ \| | | | '_ \ / _` |
+    ____) | | |  __/ | | | |_| |  | | (_) | |_| | | | | (_| |
+    |_____/|_|_|\___|_| |_|\__|_|  |_|\___/ \__,_|_| |_|\__,_|
+
+
+      author: Nick Swink aka c0rnbread
+
+      company: Layer 8 Security <layer8security.com>
+      
+    ---------------------------------------------------------------------------
+
+    [-] Connecting with SIMPLE AUTH to LDAP server 10.10.10.100...
+    [*] Writing cached data to .active-htb.pickle...
+    [+] Hosts [1]
+    DC - 10.10.10.100
+
+
+    [+] Domain Admins [1]
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    [+] Domain Users [4]
+    krbtgt
+    Guest
+    Administrator
+    SVC_TGS@active.htb
+
+
+    [+] Descriptions [0]
+
+
+    [+] Group Memberships Found [11]
+    CN=Denied RODC Password Replication Group,CN=Users,DC=active,DC=htb
+    CN=Read-only Domain Controllers,CN=Users,DC=active,DC=htb
+    CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb
+    CN=Domain Admins,CN=Users,DC=active,DC=htb
+    CN=Cert Publishers,CN=Users,DC=active,DC=htb
+    CN=Enterprise Admins,CN=Users,DC=active,DC=htb
+    CN=Schema Admins,CN=Users,DC=active,DC=htb
+    CN=Domain Controllers,CN=Users,DC=active,DC=htb
+    CN=krbtgt,CN=Users,DC=active,DC=htb
+
+
+    CN=Windows Authorization Access Group,CN=Builtin,DC=active,DC=htb
+    CN=S-1-5-9,CN=ForeignSecurityPrincipals,DC=active,DC=htb
+
+
+    CN=Pre-Windows 2000 Compatible Access,CN=Builtin,DC=active,DC=htb
+    CN=S-1-5-11,CN=ForeignSecurityPrincipals,DC=active,DC=htb
+
+
+    CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    CN=Domain Admins,CN=Users,DC=active,DC=htb
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    CN=Enterprise Admins,CN=Users,DC=active,DC=htb
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    CN=Schema Admins,CN=Users,DC=active,DC=htb
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    CN=IIS_IUSRS,CN=Builtin,DC=active,DC=htb
+    CN=S-1-5-17,CN=ForeignSecurityPrincipals,DC=active,DC=htb
+
+
+    CN=Guests,CN=Builtin,DC=active,DC=htb
+    CN=Domain Guests,CN=Users,DC=active,DC=htb
+    CN=Guest,CN=Users,DC=active,DC=htb
+
+
+    CN=Users,CN=Builtin,DC=active,DC=htb
+    CN=Domain Users,CN=Users,DC=active,DC=htb
+    CN=S-1-5-11,CN=ForeignSecurityPrincipals,DC=active,DC=htb
+    CN=S-1-5-4,CN=ForeignSecurityPrincipals,DC=active,DC=htb
+
+
+    CN=Administrators,CN=Builtin,DC=active,DC=htb
+    CN=Domain Admins,CN=Users,DC=active,DC=htb
+    CN=Enterprise Admins,CN=Users,DC=active,DC=htb
+    CN=Administrator,CN=Users,DC=active,DC=htb
+
+
+    [+] Organizational Units Found [1]
+    OU=Domain Controllers,DC=active,DC=htb
+
+
+    [+] Key Strings [18]
+    CN=Denied RODC Password Replication Group,CN=Users,DC=active,DC=htb
+    Denied RODC Password Replication Group
+    Members in this group cannot have their passwords replicated to any read-only domain controllers in the domain
+    CN=Denied RODC Password Replication Group,CN=Users,DC=active,DC=htb
+    Denied RODC Password Replication Group
+    Denied RODC Password Replication Group
+    Allowed RODC Password Replication Group
+    Members in this group can have their passwords replicated to all read-only domain controllers in the domain
+    CN=Allowed RODC Password Replication Group,CN=Users,DC=active,DC=htb
+    Allowed RODC Password Replication Group
+   
+
+
+    [+] Kerberoastable Users [1]
+    ServicePrincipalName  Name           MemberOf                                                  PasswordLastSet  LastLogon  
+    --------------------  -------------  --------------------------------------------------------  ---------------  ----------
+    active/CIFS:445       Administrator  CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb  2018-07-18       2022-11-30 
+
+
+
 
 ### About
 A lightweight tool to quickly and quietly enumerate an Active Directory environment. The goal of this tool is to get a Lay of the Land whilst making as little noise on the network as possible. The tool will make one LDAP query that is used for parsing, and create a cache file to prevent further queries/noise on the network. If no credentials are passed it will attempt anonymous BIND. 
@@ -73,18 +193,6 @@ Using the `-o` flag will result in output files for each section normally in std
 
 
 For additional feature requests please submit an [issue](https://github.com/layer8secure/SilentHound/issues/new) and add the `enhancement` tag.
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
