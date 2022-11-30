@@ -5,13 +5,6 @@ Quietly enumerate an Active Directory Domain via LDAP parsing users, admins, gro
 
 ### Installation
 
-#### Debian
-Packages for building and testing
-
-    sudo apt-get install build-essential python3-dev python2.7-dev \
-    libldap2-dev libsasl2-dev slapd ldap-utils tox \
-    lcov valgrind
-
 #### Using pipenv (recommended method)
     python3 -m pip install --user pipenv
     git clone https://github.com/layer8secure/SilentHound.git
@@ -31,27 +24,28 @@ Install dependencies with `pip`:
 
 ### Usage
     $ pipenv run python silenthound.py -h
-    usage: silenthound.py [-h] [-u USERNAME] [-p PASSWORD] [-o OUTPUT] [-g] [-n] [-k] [--kerberoast] TARGET domain
+    usage: silenthound.py [-h] [-u USERNAME] [-p PASSWORD] [--hashes HASHES] [-o OUTPUT] [-g] [-n] [-k] [--kerberoast] [--ssl] TARGET domain
 
     Quietly enumerate an Active Directory environment.
 
     positional arguments:
       TARGET                Domain Controller IP
-      domain                Dot (.) separated Domain name including both contexts e.g. ACME.com / HOME.local / htb.net
+      domain                Dot (.) separated Domain name including both contexts e.g. ACME.com | HOME.local | htb.net
 
     optional arguments:
       -h, --help            show this help message and exit
       -u USERNAME, --username USERNAME
-                            Use fully qualified domain name (bdole@home.local) or LDAP username ('bob dole')
+                            Supports SIMPLE & NTLM BIND. SIMPLE BIND use username e.g. bobdole | NTLM BIND use domain\\user e.g. HOME.local\\bobdole
       -p PASSWORD, --password PASSWORD
-                            Active Directory password'
+                            LDAP or Active Directory password
+      --hashes HASHES       Uses NTLM BIND to authenticate with NT:LM hashes
       -o OUTPUT, --output OUTPUT
-                            Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current
-                            working directory.
+                            Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current working directory.
       -g, --groups          Display Group names with user members.
       -n, --org-unit        Display Organizational Units.
       -k, --keywords        Search for a list of key words in LDAP objects.
-      --kerberoast          Identify kerberoastable user accounts by their SPNs.   
+      --kerberoast          Identify kerberoastable user accounts by their SPNs.
+      --ssl                 Use a secure LDAP server on default 636 port.  
 
 
 
@@ -72,8 +66,8 @@ Using the `-o` flag will result in output files for each section normally in std
 ### Author
 - [Nick Swink](https://github.com/nickswink) - Security Consultant at [Layer 8 Security](https://layer8security.com)
 
-### Roadmap
-- support ntlm hash auth
+### Roadmap / Updates
+:white_check_mark: support ntlm hash auth
 - match strings with regex in --keyword
 - convert cache into bloodhound compatible file to reduce traffic
 

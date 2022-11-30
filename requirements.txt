@@ -1,1 +1,2 @@
-python-ldap
+ldap3
+colorama

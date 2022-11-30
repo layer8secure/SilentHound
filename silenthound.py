@@ -2,11 +2,17 @@
 
 import time, sys, socket
 import argparse
-import ldap
+import pickle
 import ast
 from colorama import Fore, Style
+from os.path import exists
+from ldap3 import Server, Connection, AUTO_BIND_NO_TLS, SUBTREE, ALL_ATTRIBUTES, SAFE_SYNC
+from ldap3.core.exceptions import LDAPInvalidCredentialsResult, LDAPInvalidDNSyntaxResult, LDAPSocketOpenError
 
-
+# Const
+NTLM = "NTLM"
+SIMPLE = "SIMPLE"
+ANONYMOUS = "ANONYMOUS"
 
 # Global Funcs
 
@@ -26,25 +32,6 @@ def banner():
 		company: Layer 8 Security <layer8security.com>
 		""" + Style.RESET_ALL)
 	print(dashline + '\n')
-
-
-def get_cache():
-	try:
-		f = open(f".{domain}-{ext}.cache","r")
-		cache_str = f.read()
-		cache = ast.literal_eval(cache_str)
-		print(Fore.YELLOW + f"[*] Located LDAP cache '.{domain}-{ext}.cache'. Delete cache to run updated query ..." + Style.RESET_ALL)
-		f.close()
-		return cache
-	except:
-		return None
-
-
-def create_cache(dump):
-	print(Fore.YELLOW + f"[*] Caching LDAP dump for '.{domain}-{ext}.cache' ..." + Style.RESET_ALL)
-	with open(f".{domain}-{ext}.cache","w") as f:
-		f.write(str(dump))
-		f.close()
 
 
 def get_user_principal_name(cn, cn_upn_dict_list):
@@ -86,8 +73,34 @@ def printTable(items, header):
         print(outputFormat.format(*row))
 
 
+# caching class
 
-# hound class
+class Pickler():
+
+	def __init__(self, filename):
+		self.__filename = filename
+
+	def save_object(self, data):
+		try:
+			print(Fore.YELLOW + f"[*] Writing cached data to .{domain}-{ext}.pickle..." + Style.RESET_ALL)
+			with open(self.__filename, "wb") as f:
+				pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+		except Exception as err:
+			print(Fore.RED + f"[!] Error during pickling object (Possibly unsupported): {err}" + Style.RESET_ALL)
+
+	def load_object(self):
+		if not exists(f".{domain}-{ext}.pickle"):
+			return None
+		try:
+			with open(self.__filename, "rb") as f:
+				print(Fore.YELLOW + f"[*] Located LDAP cache '.{domain}-{ext}.pickle'. Delete cache to run updated query..." + Style.RESET_ALL)
+				return pickle.load(f)
+		except Exception as err:
+			print(Fore.RED + f"[!] Error during unpickling object (Possibly unsupported): {err}" + Style.RESET_ALL)
+			return None
+
+
+# dump and processor
 
 class Hound:
 
@@ -110,51 +123,49 @@ class Hound:
 
 
 	def dump_ldap(self):
-		
-		#if args.hashes:
 
+		try:			
 
-		try:
-			print(Fore.BLUE + f"[-] Connecting to the LDAP server at '{args.target}'..." + Style.RESET_ALL)
-			connect = ldap.initialize(f"ldap://{args.target}")
-			connect.set_option(ldap.OPT_REFERRALS, 0)
-			connect.simple_bind_s(args.username, args.password)
-			search_flt = "(objectClass=*)" # specific search filters
-			page_size = 1000 # pagination setting (default highest value is 1000)
-			searchreq_attrlist=[""] # specific attribute search
-			req_ctrl = ldap.controls.SimplePagedResultsControl(criticality=True, size=page_size, cookie='')
-			msgid = connect.search_ext(base=self.__namingcontexts, scope=ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
-			total_results = []
-			pages = 0
-			while True: # loop over all of the pages using the same cookie, otherwise the search will fail
-				pages += 1
-				rtype, rdata, rmsgid, serverctrls = connect.result3(msgid)
+			s = Server(args.target, use_ssl=args.ssl, get_info='ALL')
 
-				for obj in rdata:
-					total_results.append(obj)
-
-				pctrls = [c for c in serverctrls if c.controlType == ldap.controls.SimplePagedResultsControl.controlType]
-				if pctrls:
-					if pctrls[0].cookie: # Copy cookie from response control to request control
-						req_ctrl.cookie = pctrls[0].cookie
-						msgid = connect.search_ext(base=self.__namingcontexts, scope=ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
-					else:
-						break
-				else:
-					break
-
-			if (total_results[0][1]) == {}:
-				print(Fore.RED + "[!] Successful Bind but NO data returned - no permissions??" + Style.RESET_ALL)
-				sys.exit()
-				return None
+			password = args.password
+			# logic for BIND method
+			if args.username == '' and args.password == '':
+				method = ANONYMOUS
+			elif not '\\' in args.username:
+				method = SIMPLE
 			else:
-				return total_results
+				method = NTLM
+				password = args.hashes if args.hashes else args.password
+
+			if args.hashes and method == SIMPLE:
+				print(Fore.RED + f"[!] Cannot use Pass the Hash with SIMPLE AUTH. Exiting..." + Style.RESET_ALL)
+				sys.exit()	
+
+			server = "LDAPS" if args.ssl else "LDAP"
+			print(Fore.BLUE + f"[-] Connecting with {method} AUTH to {server} server {args.target}..." + Style.RESET_ALL)
+			
+			connect = Connection(s, user=args.username, password=password, client_strategy=SAFE_SYNC, auto_bind=True, authentication=method)
+
+			search_flt = "(objectClass=*)" # specific search filters
+			results = connect.extend.standard.paged_search(search_base=self.__namingcontexts, search_filter=search_flt, search_scope=SUBTREE, attributes=ALL_ATTRIBUTES, get_operational_attributes=True)
+
+			total_results = []
+
+			for item in results:
+				total_results.append(item)
+
+			return total_results
+
 				
-		except ldap.INVALID_CREDENTIALS:
+		except LDAPInvalidCredentialsResult:
 			print(Fore.RED + f"[!] Error - Invalid Credentials '{args.username}:{args.password}'" + Style.RESET_ALL)
 			sys.exit()
-		except ldap.INVALID_DN_SYNTAX as err:
+		except LDAPInvalidDNSyntaxResult as err:
 			print(Fore.RED + f"[!] Error - Invalid Syntax: {err}" + Style.RESET_ALL)
+			sys.exit()
+		except LDAPSocketOpenError as err:
+			print(Fore.RED + f"[!] Error - Couldn't reach LDAP server" + Style.RESET_ALL)
 			sys.exit()
 		except Exception as err:
 			print(Fore.RED + f"[!] Error - Failure binding to LDAP server\n {(err)}" + Style.RESET_ALL)
@@ -180,16 +191,16 @@ class Hound:
 
 
 	def extract_all(self,dump):
-		
+
 		def create_cn_upn_dict_list(dump):
 			# Map cn --> upn
 			for row in dump:
 				try:
-					if b'person' in row[1]['objectClass']:
+					if b'person' in row['raw_attributes']['objectClass']:
 						# dictionary matches CN list to UserPrincipalName for use elsewhere
-						upn_blist = (row[1]["userPrincipalName"])
+						upn_blist = (row['raw_attributes']["userPrincipalName"])
 						upn = upn_blist[0].decode('UTF-8')
-						cn_upn_dict = {"CN":row[0],"UserPrincipalName":upn}
+						cn_upn_dict = {"CN":row['dn'],"UserPrincipalName":upn}
 						self.__cn_upn_dict_list.append(cn_upn_dict)
 				except:
 					pass
@@ -200,13 +211,13 @@ class Hound:
 		for row in dump:
 			# Extract all users
 			try:
-				if b'person' in row[1]['objectClass'] and b'computer' not in row[1]['objectClass']:
-					user_principal_name_blist = row[1].get('userPrincipalName')
+				if b'person' in row['raw_attributes']['objectClass'] and b'computer' not in row['raw_attributes']['objectClass']:
+					user_principal_name_blist = row['raw_attributes'].get('userPrincipalName')
 					if user_principal_name_blist:
 						user_principal_name = user_principal_name_blist[0].decode('UTF-8')
 						self.__usernames.append(user_principal_name)
 					else:
-						user_name_blist = row[1].get('sAMAccountName')
+						user_name_blist = row['raw_attributes'].get('sAMAccountName')
 						user_name = user_name_blist[0].decode('UTF-8')
 						self.__usernames.append(user_name)
 			except:
@@ -214,8 +225,8 @@ class Hound:
 
 			# Extract all Domain admins
 			try:
-				if b'group' in row[1]['objectClass'] and b'Domain Admins' in row[1]['cn']:
-					member_blist = row[1]['member']
+				if b'group' in row['raw_attributes']['objectClass'] and b'Domain Admins' in row['raw_attributes']['cn']:
+					member_blist = row['raw_attributes']['member']
 					self.__domain_admins_cn = [member.decode('UTF-8') for member in member_blist]
 					for user_cn in self.__domain_admins_cn:
 						user_upn = get_user_principal_name(user_cn, self.__cn_upn_dict_list)
@@ -228,9 +239,9 @@ class Hound:
 
 			# Extract all hosts
 			try:
-				if b'computer' in row[1]['objectClass']:
+				if b'computer' in row['raw_attributes']['objectClass']:
 					# parse short cn
-					cn_blist = (row[1]["cn"])
+					cn_blist = (row['raw_attributes']["cn"])
 					cn = cn_blist[0].decode('UTF-8')
 					if cn in self.__computers:
 						pass
@@ -242,44 +253,42 @@ class Hound:
 
 			# Extract all Descriptions
 			try:
-				if b'person' in row[1]['objectClass']:
-					upn_blist = row[1]['userPrincipalName']
-					d_blist = row[1]['description']
+				if b'person' in row['raw_attributes']['objectClass']:
+					upn_blist = row['raw_attributes']['userPrincipalName']
+					d_blist = row['raw_attributes']['description']
 					upn = upn_blist[0].decode('UTF-8')
 					d = d_blist[0].decode('UTF-8')
 					self.__description_dict_list.append({"UserPrincipalName":upn, "description":d})
 			except:
 				pass
 
-
 			# Extract all Groups
 			if args.groups:
 				try:
-					if b'group' in row[1]['objectClass']:
-						member_blist = row[1]['member']
+					if b'group' in row['raw_attributes']['objectClass']:
+						member_blist = row['raw_attributes']['member']
 						member_list = [i.decode('UTF-8') for i in member_blist]
-						self.__group_user_dict_list.append({'Group':row[0], 'Members':member_list})
+						self.__group_user_dict_list.append({'Group':row['dn'], 'Members':member_list})
 				except:
 					pass
-
 			# Extract all OUs
 			if args.org_unit:
 				try:
-					if b'organizationalUnit' in row[1].get('objectClass'):
-						self.__ou_list.append(row[0])
+					if b'organizationalUnit' in row['raw_attributes'].get('objectClass'):
+						self.__ou_list.append(row['dn'])
 				except:
 					pass
 
 			# Extract all key phrases
 			if args.keywords:
 				try:
-					for key in row[1]:
-						# search keys
+					for key in row['raw_attributes']:
+						# search key names
 						if any(word in key for word in self.__key_words):
 							if key not in self.__default_pwd_words:
-								self.__loot_list.append(f"{key}={(row[1].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd'] -> pwd='p@$$w0rd'
+								self.__loot_list.append(f"{key}={(row['raw_attributes'].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd'] -> pwd='p@$$w0rd'
 						# search key values
-						for item in row[1].get(key):
+						for item in row['raw_attributes'].get(key):
 							try:
 								item = item.decode('UTF-8')
 								if any(word in item for word in self.__key_words):
@@ -290,10 +299,8 @@ class Hound:
 				except:
 					continue
 
-		# return self.__computers, self.__description_dict_list, self.__cn_upn_dict_list, self.__domain_admins_cn, self.__group_user_dict_list, self.__ou_list, self.__loot_list
 
-
-# Function influenced by GetUserSPNs.py without using impacket library.
+# Function influenced by GetUserSPNs.py but without using impacket library.
 # Author:
 #   Alberto Solino (@agsolino)
 
@@ -309,13 +316,13 @@ class Hound:
 			for obj in total_results:
 				try:
 					# userAccountControl = obj[1]['userAccountControl'][0]
-					servicePrincipalName = obj[1]['servicePrincipalName']
+					servicePrincipalName = obj['raw_attributes']['servicePrincipalName']
 					# UAC values - 
 					# https://jackstromberg.com/2013/01/useraccountcontrol-attributeflag-values/
 
 					# good_UACs = [b'512', b'66176', b'65536', b'66048', b'640']
 					
-					if b'computer' not in obj[1]['objectClass'] and servicePrincipalName:
+					if b'computer' not in obj['raw_attributes']['objectClass'] and servicePrincipalName:
 						kerberoastable.append(obj)
 
 				except Exception as e:
@@ -333,26 +340,26 @@ class Hound:
 				lastLogon = 'N/A'
 
 				try:
-					for attribute in obj[1]:
+					for attribute in obj['raw_attributes']:
 						if attribute == 'sAMAccountName':
-							sAMAccountName = str(obj[1].get('sAMAccountName')[0].decode('UTF-8'))
+							sAMAccountName = str(obj['raw_attributes'].get('sAMAccountName')[0].decode('UTF-8'))
 							mustCommit = True
 						elif attribute == 'userAccountControl':
-							userAccountControl = str(obj[1].get('userAccountControl')[0].decode('UTF-8'))
+							userAccountControl = str(obj['raw_attributes'].get('userAccountControl')[0].decode('UTF-8'))
 						elif attribute == 'memberOf':
-							memberOf = str(obj[1].get('memberOf')[0].decode('UTF-8'))
+							memberOf = str(obj['raw_attributes'].get('memberOf')[0].decode('UTF-8'))
 						elif attribute == 'pwdLastSet':
-							if obj[1].get(attribute)[0].decode('UTF-8') == '0':
+							if obj['raw_attributes'].get(attribute)[0].decode('UTF-8') == '0':
 								pwdLastSet = 'never'
 							else:
-								pwdLastSet = str(datetime.date.fromtimestamp(getUnixTime(int(str(obj[1].get(attribute)[0].decode('UTF-8'))))))
+								pwdLastSet = str(datetime.date.fromtimestamp(getUnixTime(int(str(obj['raw_attributes'].get(attribute)[0].decode('UTF-8'))))))
 						elif attribute == 'lastLogon':
-							if obj[1].get(attribute)[0].decode('UTF-8') == '0':
+							if obj['raw_attributes'].get(attribute)[0].decode('UTF-8') == '0':
 								lastLogon = 'never'
 							else:
-								lastLogon = str(datetime.date.fromtimestamp(getUnixTime(int(str(obj[1].get(attribute)[0].decode('UTF-8'))))))
+								lastLogon = str(datetime.date.fromtimestamp(getUnixTime(int(str(obj['raw_attributes'].get(attribute)[0].decode('UTF-8'))))))
 						elif attribute == 'servicePrincipalName':
-							for spn in obj[1].get(attribute):
+							for spn in obj['raw_attributes'].get(attribute):
 								spn = spn.decode('UTF-8')
 								SPNs.append(str(spn))
 					
@@ -367,7 +374,7 @@ class Hound:
 								self.__kerberostable_users.append([spn, sAMAccountName, memberOf, pwdLastSet, lastLogon])
 
 				except Exception as e:
-					# print('Skipping item, cannot process due to error %s' % str(e))
+					print('Skipping item, cannot process due to error %s' % str(e))
 					pass
 
 
@@ -497,14 +504,16 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser(description='Quietly enumerate an Active Directory environment.')
 	parser.add_argument('target', metavar='TARGET', type=str, help='Domain Controller IP')
-	parser.add_argument('domain', type=str,help="Dot (.) separated Domain name including both contexts e.g. ACME.com / HOME.local / htb.net")
-	parser.add_argument('-u','--username', type=str, help="Use fully qualified domain name (bdole@home.local) or LDAP username ('bob dole')")
-	parser.add_argument('-p','--password', type=str,help="Active Directory password'")
+	parser.add_argument('domain', type=str,help="Dot (.) separated Domain name including both contexts e.g. ACME.com | HOME.local | htb.net")
+	parser.add_argument('-u','--username', default='', type=str, help="Supports SIMPLE & NTLM BIND. SIMPLE BIND use username e.g. bobdole |  NTLM BIND use domain\\\\user e.g. HOME.local\\\\bobdole")
+	parser.add_argument('-p','--password', default='', type=str,help="LDAP or Active Directory password")
+	parser.add_argument('--hashes',type=str, help="Uses NTLM BIND to authenticate with NT:LM hashes")
 	parser.add_argument('-o', '--output', type=str, help="Name for output files. Creates output files for hosts, users, domain admins, and descriptions in the current working directory.")
 	parser.add_argument('-g', '--groups', action='store_true', help="Display Group names with user members.")
 	parser.add_argument('-n', '--org-unit', action='store_true', help="Display Organizational Units.")
 	parser.add_argument('-k', '--keywords', action='store_true', help="Search for a list of key words in LDAP objects.")
 	parser.add_argument('--kerberoast', action='store_true', help="Identify kerberoastable user accounts by their SPNs.")
+	parser.add_argument('--ssl', action='store_true', help="Use a secure LDAP server on default 636 port.")
 	args = parser.parse_args()
 
 
@@ -528,39 +537,37 @@ if __name__ == "__main__":
 	print()
 	banner()
 
-	# new hound object
+# Hound parser object
 	h1 = Hound(namingcontexts)
 
+# Caching functions
+	p1 = Pickler(f".{domain}-{ext}.pickle")		# takes filename
+	
 	# Check for cache
-	cache = get_cache()
-
-	# use cache otherwise new ldap dump
+	cache = p1.load_object()
+	
+	# Use cache otherwise new ldap dump
 	if not cache:
 		dump = h1.dump_ldap()
-		create_cache(dump)
+		p1.save_object(dump)
 	else:
 		dump = cache
 	time.sleep(1.5)
 
-	#extract all stuffs
+# Extract all stuffs
 	h1.extract_all(dump)
 
-	# Resolve DNS names to IPv4
+# Resolve DNS names to IPv4
 	h1.resolve_ipv4()
 
-	# Check for kerberoastable accounts
+# Check for kerberoastable accounts
 	h1.kerberoastable(dump)
 
-	# Print stuff
+# Print stuff
 	h1.print()
 
-	# Output to files
+# Output to files
 	h1.outfiles()
-
-
-
-
-
 
 
 

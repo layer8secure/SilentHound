@@ -4,8 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-python-ldap = "*"
 colorama = "*"
+ldap3 = "*"
 
 [dev-packages]
 

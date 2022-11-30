@@ -1,5 +1,6 @@
-# ignore ALL .cache files
+# ignore ALL cache files
 *.cache
+*.pickle
 
 # silenthound files
 *-descriptions.txt
