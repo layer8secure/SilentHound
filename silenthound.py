@@ -298,10 +298,11 @@ class Hound:
 			if args.keywords:
 				try:
 					for key in row['raw_attributes']:
+						object_name = user_principal_name if user_principal_name else ""
 						# search key names
 						if any(word in key for word in self.__key_words):
 							if key not in self.__default_pwd_words:
-								self.__loot_list.append(f"{key}={(row['raw_attributes'].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd'] -> pwd='p@$$w0rd'
+								self.__loot_list.append(f"({object_name}) {key}={(row['raw_attributes'].get(key))[0].decode('UTF-8')}")   # e.g. pwd=[b'p@$$w0rd'] -> pwd='p@$$w0rd'
 						# search key values
 						for item in row['raw_attributes'].get(key):
 							try:
