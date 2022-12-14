@@ -8,6 +8,7 @@ from colorama import Fore, Style
 from os.path import exists
 from ldap3 import Server, Connection, AUTO_BIND_NO_TLS, SUBTREE, ALL_ATTRIBUTES, SAFE_SYNC
 from ldap3.core.exceptions import LDAPInvalidCredentialsResult, LDAPInvalidDNSyntaxResult, LDAPSocketOpenError
+from alive_progress import alive_bar
 
 # Const
 NTLM = "NTLM"
@@ -57,20 +58,20 @@ def getUnixTime(t):
 # Author:
 #   Alberto Solino (@agsolino)
 def printTable(items, header):
-    colLen = []
-    for i, col in enumerate(header):
-        rowMaxLen = max([len(row[i]) for row in items])
-        colLen.append(max(rowMaxLen, len(col)))
+	colLen = []
+	for i, col in enumerate(header):
+		rowMaxLen = max([len(row[i]) for row in items])
+		colLen.append(max(rowMaxLen, len(col)))
 
-    outputFormat = ' '.join(['{%d:%ds} ' % (num, width) for num, width in enumerate(colLen)])
+	outputFormat = ' '.join(['{%d:%ds} ' % (num, width) for num, width in enumerate(colLen)])
 
-    # Print header
-    print(outputFormat.format(*header))
-    print('  '.join(['-' * itemLen for itemLen in colLen]))
+	# Print header
+	print(outputFormat.format(*header))
+	print('  '.join(['-' * itemLen for itemLen in colLen]))
 
-    # And now the rows
-    for row in items:
-        print(outputFormat.format(*row))
+	# And now the rows
+	for row in items:
+		print(outputFormat.format(*row))
 
 
 # caching class
@@ -86,7 +87,7 @@ class Pickler():
 			with open(self.__filename, "wb") as f:
 				pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 		except Exception as err:
-			print(Fore.RED + f"[!] Error during pickling object (Possibly unsupported): {err}" + Style.RESET_ALL)
+			print(Fore.RED + f"[!] Error during pickling object: {err}" + Style.RESET_ALL)
 
 	def load_object(self):
 		if not exists(f".{domain}-{ext}.pickle"):
@@ -96,7 +97,7 @@ class Pickler():
 				print(Fore.YELLOW + f"[*] Located LDAP cache '.{domain}-{ext}.pickle'. Delete cache to run updated query..." + Style.RESET_ALL)
 				return pickle.load(f)
 		except Exception as err:
-			print(Fore.RED + f"[!] Error during unpickling object (Possibly unsupported): {err}" + Style.RESET_ALL)
+			print(Fore.RED + f"[!] Error during unpickling object: {err}" + Style.RESET_ALL)
 			return None
 
 
@@ -172,23 +173,37 @@ class Hound:
 			sys.exit()
 
 
-	def resolve_ipv4(self):
-		host_ip_list = []
-		for host in self.__computers:
-			try:
-				addrinfo = socket.getaddrinfo(host, 80, family=socket.AF_INET)
-				# parse results
-				ipv4 = addrinfo[1][4][0]
-				# create dictionary of dns and ipv4
-				host_ip_list.append({"Name":host,"Address":ipv4})
-			# getaddressinfo(gai) error
-			except socket.gaierror as err:
-				# print(f"[!] Host isn't alive - Can't get ipv4 ({host})")
-				host_ip_list.append({"Name":host,"Address":"?"})
-			except:
-				print(Fore.RED + f"[!] Failed getting ipv4 info ({host})" + Style.RESET_ALL)
-		self.__ip_dict_list = host_ip_list
+	def resolve_ipv4(self, timeout):
+		start_time = time.time()
+		#print(self.__computers)
+		with alive_bar(len(self.__computers), dual_line=True, title=Fore.YELLOW + "[*] Resolving hostnames" + Style.RESET_ALL) as bar:
+			for host in self.__computers:
+				try:
+					addrinfo = socket.getaddrinfo(host, 80, family=socket.AF_INET)
+					# parse results
+					ipv4 = addrinfo[1][4][0]
+					# create dictionary of dns and ipv4
+					self.__ip_dict_list.append({"Name":host,"Address":ipv4})
+				except KeyboardInterrupt:
+				    # quit
+				    sys.exit()
+				# getaddressinfo(gai) error
+				except socket.gaierror as err:
+					# print(f"[!] Host isn't alive - Can't get ipv4 ({host})")
+					self.__ip_dict_list.append({"Name":host,"Address":""})
+				except:
+					self.__ip_dict_list.append({"Name":host,"Address":""})
+					print(Fore.RED + f"[!] Failed getting ipv4 info ({host})" + Style.RESET_ALL)
+			   
+				# Check if its going to take too long
+				if (time.time() - start_time) > timeout:
+					print(Fore.YELLOW + f"[*] Reverse DNS taking too long, skipping..." + Style.RESET_ALL)
+					current_index = self.__computers.index(host)
+					for host_left in self.__computers[current_index:]:
+							self.__ip_dict_list.append({"Name":host_left,"Address":""})
+					break
 
+				bar()
 
 	def extract_all(self,dump):
 
@@ -382,7 +397,7 @@ class Hound:
 		# Print Hosts
 		print(Fore.GREEN + f"[+] Hosts [{len(self.__ip_dict_list)}]" + Style.RESET_ALL)
 		for i in range(len(self.__ip_dict_list)):
-			print(f"{self.__ip_dict_list[i]['Name']} - {self.__ip_dict_list[i]['Address']}")
+			print(f"{self.__ip_dict_list[i]['Name']} {self.__ip_dict_list[i]['Address']}")
 		print('\n')
 
 		# Print Domain Admins
@@ -514,6 +529,7 @@ if __name__ == "__main__":
 	parser.add_argument('-k', '--keywords', action='store_true', help="Search for a list of key words in LDAP objects.")
 	parser.add_argument('--kerberoast', action='store_true', help="Identify kerberoastable user accounts by their SPNs.")
 	parser.add_argument('--ssl', action='store_true', help="Use a secure LDAP server on default 636 port.")
+	parser.add_argument('--dns-timeout', type=int, default='999999999', help="Useful if resolving hostnames is taking too long. (seconds) e.g. --dns-timeout 90")
 	args = parser.parse_args()
 
 
@@ -558,7 +574,7 @@ if __name__ == "__main__":
 	h1.extract_all(dump)
 
 # Resolve DNS names to IPv4
-	h1.resolve_ipv4()
+	h1.resolve_ipv4(args.dns_timeout)
 
 # Check for kerberoastable accounts
 	h1.kerberoastable(dump)

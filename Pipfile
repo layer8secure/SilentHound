@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 colorama = "*"
 ldap3 = "*"
+alive-progress = "*"
 
 [dev-packages]
 
